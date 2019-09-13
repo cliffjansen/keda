@@ -630,6 +630,8 @@ func (h *ScaleHandler) getScaler(trigger keda_v1alpha1.ScaleTriggers, resolvedEn
 		return scalers.NewPubSubScaler(resolvedEnv, trigger.Metadata)
 	case "liiklus":
 		return scalers.NewLiiklusScaler(resolvedEnv, trigger.Metadata)
+	case "activemq-artemis":
+		return scalers.NewActivemqArtemisScaler(resolvedEnv, trigger.Metadata)
 	default:
 		return nil, fmt.Errorf("no scaler found for type: %s", trigger.Type)
 	}
