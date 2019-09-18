@@ -6,7 +6,11 @@ import (
 	"strconv"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"encoding/json"
+	"crypto/tls"
+	"crypto/x509"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	v2beta1 "k8s.io/api/autoscaling/v2beta1"
@@ -30,6 +34,7 @@ type artemisMetadata struct {
 	targetQueueLength int
 	queueName         string
 	jolokiaHost       string
+	trustCA            string
 }
 
 func NewActivemqArtemisScaler(resolvedEnv, metadata map[string]string) (Scaler, error) {
@@ -64,9 +69,36 @@ func parseArtemisMetadata(metadata, resolvedEnv map[string]string) (*artemisMeta
 	}
 
 	if val, ok := metadata["jolokiaHost"]; ok && val != "" {
-		meta.jolokiaHost = val
+		meta.jolokiaHost = strings.TrimRight(val, "/")
 	} else {
 		return nil, fmt.Errorf("no jolokiaHost given")
+	}
+	u, err := url.Parse(meta.jolokiaHost)
+	if err != nil {
+		return nil, err
+	}
+
+	if val, ok := metadata["trustCA"]; ok && val != "" {
+		meta.trustCA = val
+	}
+
+	if val, ok := metadata["passwordKey"]; ok && val != "" {
+		var jolokiaPW string
+		// If set in the deployment, KEDA passes in the resolved value of the password
+		if val2, ok := resolvedEnv[val]; ok && val2 != ""  {
+			jolokiaPW = val2
+		} else {
+			return nil, fmt.Errorf("password not set for deployment environment key %s", val)
+		}
+		var username string
+		if u.User != nil {
+			username = u.User.Username()
+		}
+		if username != "" {
+			meta.jolokiaHost = fmt.Sprintf("%s://%s:%s@%s:%s", u.Scheme, username, jolokiaPW, u.Hostname(), u.Port())
+		} else {
+			return nil, fmt.Errorf("no username given for password")
+		}
 	}
 
 	return &meta, nil
@@ -77,10 +109,10 @@ func (s *artemisScaler) IsActive(ctx context.Context) (bool, error) {
 		ctx,
 		s.metadata.jolokiaHost,
 		s.metadata.queueName,
+		s.metadata.trustCA,
 	)
-
 	if err != nil {
-		log.Errorf("error %s", err)
+		log.Errorf("Artemis IsActive error %s", err)
 		return false, err
 	}
 
@@ -104,6 +136,7 @@ func (s *artemisScaler) GetMetrics(ctx context.Context, metricName string, metri
 		ctx,
 		s.metadata.jolokiaHost,
 		s.metadata.queueName,
+		s.metadata.trustCA,
 	)
 
 	if err != nil {
@@ -123,9 +156,11 @@ func (s *artemisScaler) GetMetrics(ctx context.Context, metricName string, metri
 
 type MsgCountInfo struct {
 	MsgCount   int32 `json:"value"`
+	Status     int32 `json:"status"`
+	Error      string `json:"error"`
 }
 
-func GetArtemisQueueLength(ctx context.Context, jolokiaHost string, queueName string) (int32, error) {
+func GetArtemisQueueLength(ctx context.Context, jolokiaHost string, queueName string, trustCA string) (int32, error) {
 	var info MsgCountInfo
 
 	url := fmt.Sprintf(
@@ -134,19 +169,50 @@ func GetArtemisQueueLength(ctx context.Context, jolokiaHost string, queueName st
 			queueName,
 		)
 
-	r, err := http.Get(url)
+	// TODO: cache the http Client
+	var roots *x509.CertPool = nil
+	client := &http.Client{}
+
+	if len(trustCA) > 0 {
+		roots = x509.NewCertPool()    // override container's root CAs
+		ok := roots.AppendCertsFromPEM([]byte(trustCA))
+		if !ok {
+			err := fmt.Errorf("bad Root CA encoding")
+			return -1, err
+		}
+		tp := &http.Transport{TLSClientConfig: &tls.Config{
+			RootCAs: roots,
+			InsecureSkipVerify: false,
+		}}
+		client = &http.Client{Transport: tp}
+	}
+
+	r, err := client.Get(url)
 	if err != nil {
 		return -1, err
 	}
 	defer r.Body.Close()
+	if r.StatusCode == 403 {
+		return -1, fmt.Errorf("Artemis query 403 permission error")
+	}
+	if r.StatusCode != 200 {
+		return -1, fmt.Errorf("Artemis query failure, code %d", r.StatusCode)
+	}
+
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return -1, err
 	}
 	err = json.Unmarshal(b, &info)
-	if err != nil {
-		return -1, err
+	if err == nil {
+		if info.Status == 200 {
+			// Success!
+			return info.MsgCount, nil
+		}
+		if info.Error != "" {
+			return -1, fmt.Errorf("Artemis query error: %s", info.Error)
+		}
+		return -1, fmt.Errorf("Unknown Artemis error in broker query")
 	}
-
-	return info.MsgCount, nil
+	return -1, fmt.Errorf("Artemis query parsing error %s", err.Error())
 }

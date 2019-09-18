@@ -16,5 +16,33 @@ spec:
       queueName: myqueue
       # Optional
       queueLength: '5' # Queue length target for HPA. Default: 5 messages
+      # If communication with broker's Jolikia managemnent requires authentication and encryption:
+      passwordKey  : ARTEMIS_J_PASSWORD
+      trustCA: |
+        -----BEGIN CERTIFICATE-----
+        MIID/zCCAuegAwIBAgIUCgT1+4nERr1w5iIO6ZMEUFBGFLkwDQYJKoZIhvcNAQEL
+        BQAwgY4xCzAJBgNVBAYTAlhYMRAwDgYDVQQIDAdEZWZhdWx0MRUwEwYDVQQHDAxE
+        ZWZhdWx0IENpdHkxFDASBgNVBAoMC1NlbGYgU2lnbmVkMRIwEAYDVQQLDAlNZXNz
+        YWdpbmcxLDAqBgNVBAMMI2FydGVtaXMwMS5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxv
+        Y2FsMB4XDTE5MDkxNjE0NDAxN1oXDTIwMDkxNTE0NDAxN1owgY4xCzAJBgNVBAYT
+        AlhYMRAwDgYDVQQIDAdEZWZhdWx0MRUwEwYDVQQHDAxEZWZhdWx0IENpdHkxFDAS
+        BgNVBAoMC1NlbGYgU2lnbmVkMRIwEAYDVQQLDAlNZXNzYWdpbmcxLDAqBgNVBAMM
+        I2FydGVtaXMwMS5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMIIBIjANBgkqhkiG
+        9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1VLo2+jKEDJgm5m2BQi56tj2eOcoX2NTP7cT
+        C/GrD/zNDeT0tmvrGB2NhK8YuJtQ+ixzSZIEFNGtknnvPWzJMexDlSYMMEk4m3Ac
+        lDEcwpyNqm1BD+cxhyzKsXn0p16Xqiu3Cmrnneu233IYePGjktjOsgsOvWFqTwrA
+        uMFhv9FevxGqIV8z3NV0049F7XLw0iKR1tJLtP7arsH/qXdug+9mq+ra0pLhnRWP
+        RnIxAUfO1MSdz+o9Bxl6UAL9RjAgrJ9HB6Qgq7V/Yr90eki3ilLsvWSvUT3s8H4Z
+        ceX6ghpIVL3zkAdsmUbdxu2FYg2KjyUJFTyG6/fyTCSlEnuinwIDAQABo1MwUTAd
+        BgNVHQ4EFgQUeeEYFD062F1D6qyKpZFVw82d6Z8wHwYDVR0jBBgwFoAUeeEYFD06
+        2F1D6qyKpZFVw82d6Z8wDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOC
+        AQEAeDNuUIhF97B+6/8RfZkVbUwQ++N6mGhTKNX2BzxuRHQWR8hmS4ZReudDWOi1
+        64woHsEwr2bkZ6CX+ciUC6ktki0QgC0pASVglhQI5pXYYqAHcuuh8bEi3nZ0biu0
+        6ATvxID+n/34NMMMer/b90v5QXIsgMkDwjMUCyTPviZcWn7DIlKxwtjtYLDJkeUm
+        JKRfl1vbI0s0c6SiVm/9T5BvNJlPWM2K+ca2cKBGx+XMhV9ouJJFVdhjy7kNNkXv
+        wyrc7LPjOCbXMymCxqPR9An9cKzVz/9vITZCXzwYjtbvd21HqO2FqX9NqpXQOgQN
+        uLiHmIhymIdJVUTYDtoYcJ+IZg==
+        -----END CERTIFICATE-----
+
 ---
 
