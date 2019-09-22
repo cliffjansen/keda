@@ -155,16 +155,18 @@ func (s *artemisScaler) GetMetrics(ctx context.Context, metricName string, metri
 
 
 type MsgCountInfo struct {
-	MsgCount   int32 `json:"value"`
-	Status     int32 `json:"status"`
-	Error      string `json:"error"`
+	MsgCount map[string] struct {
+		MessageCount int32
+	} `json:"value"`
+	Status   int32 `json:"status"`
+	Error    string `json:"error"`
 }
 
 func GetArtemisQueueLength(ctx context.Context, jolokiaHost string, queueName string, trustCA string) (int32, error) {
 	var info MsgCountInfo
 
 	url := fmt.Sprintf(
-			"%s/console/jolokia/read/org.apache.activemq.artemis:broker=\"0.0.0.0\",component=addresses,address=%%22%s%%22/MessageCount",
+			"%s/console/jolokia/read/org.apache.activemq.artemis:broker=\"*\",component=addresses,address=%%22%s%%22/MessageCount",
 			jolokiaHost,
 			queueName,
 		)
@@ -207,7 +209,13 @@ func GetArtemisQueueLength(ctx context.Context, jolokiaHost string, queueName st
 	if err == nil {
 		if info.Status == 200 {
 			// Success!
-			return info.MsgCount, nil
+			var total int32 = 0
+			for _, v := range info.MsgCount {
+				if v.MessageCount > 0 {
+					total += v.MessageCount
+				}
+			}
+			return total, nil
 		}
 		if info.Error != "" {
 			return -1, fmt.Errorf("Artemis query error: %s", info.Error)
